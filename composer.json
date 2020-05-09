@@ -1,0 +1,15 @@
+{
+    "name": "lmnt/philo",
+    "description": "Functional & friendly",
+    "autoload": {
+        "psr-4": {
+            "philo\\": "src/"
+        },
+        "files": [
+            "src/philo.php"
+        ]
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9"
+    }
+}
