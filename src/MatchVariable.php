@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace philo;
 
 /**
-* Prolog-esque variables for philo/match
+* Prolog-esque variables for philo\match
 */
 class MatchVariable {
     
