@@ -108,7 +108,7 @@ class MatchTest extends TestCase
 
         $query = db([
             ['A', ['B'], 'X'],
-            ['A', 'B', 'Y'],
+            ['A', 'B', 'X'],
             ['A', 'C', 'Z']
         ]);
 
@@ -118,7 +118,7 @@ class MatchTest extends TestCase
         $result = $query(['A', $X->constrain(is_array), 'X'], $X);
         $this->assertEquals([0 => ['B']], $result);
 
-        $result = $query(['A', $X->constrain(is_string), 'Y'], $X);
+        $result = $query(['A', $X->constrain(is_string), 'X'], $X);
         $this->assertEquals([1 => 'B'], $result);
     }
     public function testMatchVariableFanOut()
@@ -134,8 +134,8 @@ class MatchTest extends TestCase
         ]);
 
         $X->constrain(any(
-          is_string,
-          all(is_int, gt(2))
+            is_string,
+            all(is_int, gt(2))
         ));
 
         $result = $query(
