@@ -2,6 +2,7 @@
     "name": "lmnt/philo",
     "description": "Functional & friendly",
     "license": "MIT",
+    "keywords": ["functional", "pattern-matching"],
     "autoload": {
         "psr-4": {
             "philo\\": "src/"
