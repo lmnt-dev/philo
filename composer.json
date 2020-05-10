@@ -1,6 +1,7 @@
 {
     "name": "lmnt/philo",
     "description": "Functional & friendly",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "philo\\": "src/"
