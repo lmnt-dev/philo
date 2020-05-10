@@ -1,8 +1,12 @@
 {
     "name": "lmnt/philo",
     "description": "Functional & friendly",
+    "keywords": ["functional", "pattern", "pattern matching", "destructuring"],
     "license": "MIT",
-    "keywords": ["functional", "pattern-matching"],
+    "authors": [{
+        "name": "Denny Shimkoski",
+        "email": "denny@lmnt.dev"
+    }],
     "autoload": {
         "psr-4": {
             "philo\\": "src/"
