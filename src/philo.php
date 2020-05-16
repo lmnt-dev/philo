@@ -44,6 +44,109 @@ function identity($x)
 }
 
 /*-----------------------------
+* Collections
+*----------------------------*/
+
+/**
+* Filter inputs using the given predicate
+* 
+* @param callable $f
+* @return callable
+*/
+function filter(callable $f)
+{
+    return kv(fn (array $x) => array_filter($x, f($f), ARRAY_FILTER_USE_BOTH));
+}
+
+/**
+* Match given key against input keys
+* 
+* @param string|int|array $path
+* @param int $start
+* @param int $length
+* @return callable
+*/
+function k($path, int $start = 0, int $length = null)
+{
+    return function ($x, $k) use ($path, $start, $length) {
+        if ($start || $length) {
+            $k = slice($k, $start, $length);
+        }
+        return is_callable($path)
+            ? $path($k)
+            : is($k, $path);
+    };
+}
+
+/**
+* Normalize key/val inputs for the given function
+* 
+* @param callable $f expecting associative array
+* @return callable
+*/
+function kv(callable $f)
+{
+    return match(
+        is_array, $f,
+        is_object, fn ($x) => (object) $f(get_object_vars($x))
+    );
+}
+
+/**
+* Map inputs to outputs via the given function
+* 
+* @param callable $f
+* @return callable
+*/
+function map(callable $f = null, array $path = null)
+{
+    $f = f($f);
+    return reduce(function ($r, $x, $k) use ($f, $path) {
+        $r[$k] = $f($x, $path ? array_merge($path, [$k]) : $k);
+        return $r;
+    });
+}
+
+/**
+* Pick values via key/index
+* 
+* @param callable $f
+* @return callable
+*/
+function pick(string ...$keys)
+{
+    return filter(k(in($keys)));
+}
+
+/**
+* Pluck values from collection via key/index
+* 
+* @param callable $f
+* @return callable
+*/
+function pluck(string ...$keys)
+{
+    return map(pick(...$keys));
+}
+
+/**
+* Reduce inputs using the given reducer
+* 
+* @param callable $f
+* @param mixed $initial
+* @return callable
+*/
+function reduce(callable $f, $initial = null)
+{
+    $f = f($f);
+    return kv(fn (array $x) => array_reduce(
+        array_keys($x),
+        fn ($r, $k) => $f($r, $x[$k], $k),
+        $initial
+    ));
+}
+
+/*-----------------------------
 * COMPOSITION
 *----------------------------*/
 
@@ -84,74 +187,56 @@ function fanout (callable ...$fs) {
 }
 
 /*-----------------------------
-* KV MANIPULATION
+* LOGICAL CONNECTIVES
 *----------------------------*/
 
 /**
-* Normalize key/val inputs for the given function
+* Return true if all predicates are true, i.e., logical AND
 * 
-* @param callable $f expecting associative array
+* @param callable[] $fs
 * @return callable
 */
-function kv(callable $f)
+function all(...$fs)
 {
-    return match(
-        is_array, $f,
-        is_object, fn ($x) => (object) $f(get_object_vars($x))
-    );
-}
-
-/**
-* Map inputs to outputs via the given function
-* 
-* @param callable $f
-* @return callable
-*/
-function map(callable $f = null, array $path = null)
-{
-    $f = f($f);
-    // use reduce to preserve keys
-    return kv(fn (array $x) => array_reduce(
-        array_keys($x),
-        function ($r, $k) use ($f, $path, $x) {
-            $r[$k] = $f($x[$k], $path ? array_merge($path, [$k]) : $k);
-            return $r;
+    $all = function ($fs, $x, $y) {
+        foreach ($fs as $f) {
+            if (!f($f)($x, $y)) {
+                return false;
+            }
         }
-    ));
+        return true;
+    };
+    return fn ($x, $k = null) => $all($fs, $x, $k);
 }
 
 /**
-* Reduce inputs using the given reducer
+* Return true if any predicates are true, i.e., logical OR
 * 
-* @param callable $f
-* @param mixed $initial
+* @param callable[] $fs
 * @return callable
 */
-function reduce(callable $f, $initial = null)
+function any(...$fs)
 {
-    return kv(fn (array $x) => array_reduce($x, $f, $initial));
+    $any = function ($fs, $x, $k) {
+        foreach ($fs as $f) {
+            if (f($f)($x, $k)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    return fn ($x, $k = null) => $any($fs, $x, $k);
 }
 
 /**
-* Filter inputs using the given predicate
+* Negate the given predicate, i.e., logical NOT
 * 
 * @param callable $f
 * @return callable
 */
-function filter(callable $f)
+function not($f)
 {
-    return kv(fn (array $x) => array_filter($x, f($f), ARRAY_FILTER_USE_BOTH));
-}
-
-/**
-* Filter inputs using the given keys
-* 
-* @param callable $f
-* @return callable
-*/
-function pluck(string ...$keys)
-{
-    return filter(k(in($keys)));
+    return pipe($f, fn ($x) => !$x);
 }
 
 /*-----------------------------
@@ -214,26 +299,6 @@ function is($x, $T, $k = null)
 }
 
 /**
-* Match given key against input keys
-* 
-* @param string|int|array $path
-* @param int $start
-* @param int $length
-* @return callable
-*/
-function k($path, int $start = 0, int $length = null)
-{
-    return function ($x, $k) use ($path, $start, $length) {
-        if ($start || $length) {
-            $k = slice($k, $start, $length);
-        }
-        return is_callable($path)
-        ? $path($k)
-        : is($k, $path);
-    };
-}
-
-/**
 * Extend `match` into tree structures
 * 
 * @return array
@@ -259,73 +324,6 @@ function recurse()
 function rmatch(...$pairs)
 {
     return match(...$pairs, ...recurse());
-}
-
-/**
-* Get query function for given data
-* 
-* @param array $data
-* @return callable
-*/
-function db(array $data) {
-    return function ($type, $value) use ($data) {
-        return filter(not(is_null))(
-            rmatch($type, $value)($data)
-        );
-    };
-}
-
-/*-----------------------------
-* LOGICAL CONNECTIVES
-*----------------------------*/
-
-/**
-* Return true if all predicates are true, i.e., logical AND
-* 
-* @param callable[] $fs
-* @return callable
-*/
-function all(...$fs)
-{
-    $all = function ($fs, $x, $y) {
-        foreach ($fs as $f) {
-            if (!f($f)($x, $y)) {
-                return false;
-            }
-        }
-        return true;
-    };
-    return fn ($x, $k = null) => $all($fs, $x, $k);
-}
-
-/**
-* Return true if any predicates are true, i.e., logical OR
-* 
-* @param callable[] $fs
-* @return callable
-*/
-function any(...$fs)
-{
-    $any = function ($fs, $x, $k) {
-        foreach ($fs as $f) {
-            if (f($f)($x, $k)) {
-                return true;
-            }
-        }
-        return false;
-    };
-    return fn ($x, $k = null) => $any($fs, $x, $k);
-}
-
-/**
-* Negate the given predicate, i.e., logical NOT
-* 
-* @param callable $f
-* @return callable
-*/
-function not($f)
-{
-    return pipe($f, fn ($x) => !$x);
 }
 
 /*-----------------------------

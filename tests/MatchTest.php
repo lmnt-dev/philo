@@ -106,11 +106,13 @@ class MatchTest extends TestCase
     {
         $X = new MatchVariable;
 
-        $query = db([
-            ['A', ['B'], 'X'],
-            ['A', 'B', 'X'],
-            ['A', 'C', 'Z']
-        ]);
+        $exists = filter(not(is_null));
+        $query = fn ($type, $value) =>
+            $exists(rmatch($type, $value)([
+                ['A', ['B'], 'X'],
+                ['A', 'B', 'X'],
+                ['A', 'C', 'Z']
+            ]));
 
         $result = $query(['A', $X, 'Z'], $X);
         $this->assertEquals([2 => 'C'], $result);
@@ -126,12 +128,14 @@ class MatchTest extends TestCase
         $X = new MatchVariable;
         $Y = new MatchVariable;
 
-        $query = db([
-            ['A', ['B'], 'X'],
-            ['A', 'B', 'Y'],
-            ['A', 3, 'Z'],
-            ['A', 1, 'T'],
-        ]);
+        $exists = filter(not(is_null));
+        $query = fn ($type, $value) =>
+            $exists(rmatch($type, $value)([
+                ['A', ['B'], 'X'],
+                ['A', 'B', 'Y'],
+                ['A', 3, 'Z'],
+                ['A', 1, 'T'],
+            ]));
 
         $X->constrain(any(
             is_string,
