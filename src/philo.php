@@ -61,7 +61,7 @@ function filter(callable $f)
 /**
 * Match given key against input keys
 * 
-* @param string|int|array $path
+* @param (string|int)[] $path
 * @param int $start
 * @param int $length
 * @return callable
@@ -96,6 +96,7 @@ function kv(callable $f)
 * Map inputs to outputs via the given function
 * 
 * @param callable $f
+* @param (string|int)[] $path
 * @return callable
 */
 function map(callable $f = null, array $path = null)
@@ -110,7 +111,7 @@ function map(callable $f = null, array $path = null)
 /**
 * Pick values via key/index
 * 
-* @param callable $f
+* @param string[] $keys,...
 * @return callable
 */
 function pick(string ...$keys)
@@ -121,7 +122,7 @@ function pick(string ...$keys)
 /**
 * Pluck values from collection via key/index
 * 
-* @param callable $f
+* @param string[] $keys,...
 * @return callable
 */
 function pluck(string ...$keys)
@@ -155,7 +156,7 @@ function reduce(callable $f, $initial = null)
 * 
 * Given `compose($f, $g)`, the result will be `$f($g())`
 * 
-* @param callable $fs
+* @param callable[] $fs,...
 * @return callable
 */
 function compose(callable ...$fs)
@@ -168,7 +169,7 @@ function compose(callable ...$fs)
 * 
 * Given `pipe($f, $g)`, the result will be `$g($f())`
 * 
-* @param callable ...$fs
+* @param callable[] $fs,...
 * @return callable
 */
 function pipe(callable ...$fs)
@@ -179,7 +180,7 @@ function pipe(callable ...$fs)
 /**
 * Distribute argument to multiple callables
 *
-* @param callable ...$fs
+* @param callable[] $fs,...
 * @return callable
 */
 function fanout (callable ...$fs) {
@@ -193,7 +194,7 @@ function fanout (callable ...$fs) {
 /**
 * Return true if all predicates are true, i.e., logical AND
 * 
-* @param callable[] $fs
+* @param callable[] $fs,...
 * @return callable
 */
 function all(...$fs)
@@ -212,7 +213,7 @@ function all(...$fs)
 /**
 * Return true if any predicates are true, i.e., logical OR
 * 
-* @param callable[] $fs
+* @param callable[] $fs,...
 * @return callable
 */
 function any(...$fs)
@@ -246,7 +247,7 @@ function not($f)
 /**
 * Match [...[$type, $value]] pairs
 * 
-* @param array ...$args
+* @param array $args,...
 * @return callable
 */
 function match(...$args)
@@ -318,7 +319,7 @@ function recurse()
 /**
 * Full recursive match of [...[$type, $value]] pairs
 * 
-* @param array ...$args
+* @param array $args,...
 * @return callable
 */
 function rmatch(...$pairs)
@@ -388,7 +389,8 @@ function lte($y)
 /**
 * Return true if input is found in array
 * 
-* @param mixed $y
+* @param mixed[] $in
+* @param bool $strict
 * @return callable
 */
 function in(array $in, $strict = true)
@@ -443,12 +445,12 @@ function some(callable $f)
 * 
 * Only applies to callable strings, other values will be returned as is
 * 
-* @param mixed $f
+* @param callable $f
 * @return mixed
 */
-function f($f)
+function f(callable $f)
 {
-    if (!is_string($f) || !is_callable($f)) {
+    if (!is_string($f)) {
         return $f;
     }
     [, $max] = num_args($f);
