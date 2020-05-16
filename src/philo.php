@@ -24,13 +24,26 @@ const identity = 'philo\identity';
 const is_array = 'is_array';
 const is_bool = 'is_bool';
 const is_callable = 'is_callable';
-const is_int = 'is_int';
+const is_countable = 'is_countable';
+const is_dir = 'is_dir';
+const is_executable = 'is_executable';
+const is_file = 'is_file';
+const is_finite = 'is_finite';
 const is_float = 'is_float';
+const is_infinite = 'is_infinite';
+const is_int = 'is_int';
+const is_iterable = 'is_iterable';
+const is_link = 'is_link';
 const is_nan = 'is_nan';
 const is_null = 'philo\is_null_recursive';
 const is_numeric = 'is_numeric';
 const is_object = 'is_object';
+const is_readable = 'is_readable';
+const is_resource = 'is_resource';
+const is_scalar = 'is_scalar';
 const is_string = 'is_string';
+const is_uploaded_file = 'is_uploaded_file';
+const is_writable = 'is_writable';
 
 /**
 * Identity function
