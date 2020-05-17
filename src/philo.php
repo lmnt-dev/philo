@@ -35,7 +35,7 @@ const is_int = 'is_int';
 const is_iterable = 'is_iterable';
 const is_link = 'is_link';
 const is_nan = 'is_nan';
-const is_null = 'philo\is_null_recursive';
+const is_null = 'philo\is_null';
 const is_numeric = 'is_numeric';
 const is_object = 'is_object';
 const is_readable = 'is_readable';
@@ -74,7 +74,7 @@ function filter(callable $f)
 /**
 * Match given key against input keys
 * 
-* @param (string|int)[] $path
+* @param (callable|string|int)[] $path
 * @param int $start
 * @param int $length
 * @return callable
@@ -476,13 +476,13 @@ function f(callable $f)
 * @param mixed $x
 * @return bool
 */
-function is_null_recursive($x)
+function is_null($x)
 {
     if (!is_array($x)) {
         return $x === null;
     }
     foreach ($x as $v) {
-        if (!is_null_recursive($v)) {
+        if (!is_null($v)) {
             return false;
         }
     }

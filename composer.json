@@ -1,6 +1,6 @@
 {
     "name": "lmnt/philo",
-    "description": "Functional & friendly",
+    "description": "A functional programming library designed to work with existing language constructs in a point-free style. Use it to modularize logical expressions, simplify pattern matching, and create expressive data processing pipelines",
     "keywords": ["functional", "pattern", "pattern matching", "destructuring"],
     "license": "MIT",
     "authors": [{
