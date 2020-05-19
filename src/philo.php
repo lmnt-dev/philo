@@ -81,7 +81,7 @@ function filter(callable $f)
 */
 function k($path, int $start = 0, int $length = null)
 {
-    return function ($x, $k) use ($path, $start, $length) {
+    return function ($x, $k = null) use ($path, $start, $length) {
         if ($start || $length) {
             $k = slice($k, $start, $length);
         }
@@ -250,7 +250,7 @@ function any(...$fs)
 */
 function not($f)
 {
-    return pipe($f, fn ($x) => !$x);
+    return pipe(f($f), fn ($x) => !$x);
 }
 
 /*-----------------------------
