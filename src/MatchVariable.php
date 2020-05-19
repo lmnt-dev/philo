@@ -13,7 +13,18 @@ class MatchVariable {
     * @var callable
     */
     protected $constraint;
-    
+
+    /**
+     * Create multiple variables
+     * @param int $n
+     */
+    static function create($n = 1) {
+        return array_map(
+            fn () => new self(),
+            array_fill(0, $n, null)
+        );
+    }
+
     /**
     * Return matched value
     */

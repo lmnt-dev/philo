@@ -269,6 +269,9 @@ function match(...$args)
         foreach (array_chunk($args, 2) as [$T, $value]) {
             if (is($x, $T, $k)) {
                 if (!is_callable($value)) {
+                    if (is_array($value)) {
+                        return map(fn ($v) => is_callable($v) ? $v() : $v)($value);
+                    }
                     return $value;
                 }
                 return f($value)($x, $k, $f);
