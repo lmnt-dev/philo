@@ -11,5 +11,5 @@ Requires PHP 7.4+
 ## installation
 
 ```
-composer require lmnt/philo
+composer require lmnt/philo:dev-master
 ```
