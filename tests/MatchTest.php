@@ -18,10 +18,10 @@ class MatchTest extends TestCase
             2, fn ($x) => ":$x",
             'd', identity
         );
-        $this->assertEquals($f('a'), 'b');
-        $this->assertEquals($f('2'), null);
-        $this->assertEquals($f(2), ':2');
-        $this->assertEquals($f('d'), 'd');
+        $this->assertEquals('b', $f('a'));
+        $this->assertEquals(null, $f('2'));
+        $this->assertEquals(':2', $f(2));
+        $this->assertEquals('d', $f('d'));
     }
     public function testMatchPredicate()
     {
@@ -29,8 +29,8 @@ class MatchTest extends TestCase
             is_string, fn ($x) => ":$x",
             is_int, fn ($x) => "#$x"
         );
-        $this->assertEquals($f('a'), ':a');
-        $this->assertEquals($f(1), '#1');
+        $this->assertEquals(':a', $f('a'));
+        $this->assertEquals('#1', $f(1));
     }
     public function testMatchArray()
     {
@@ -38,8 +38,17 @@ class MatchTest extends TestCase
             [1, 2], 'specific',
             is_array, 'generic'
         );
-        $this->assertEquals($f([1, 2]), 'specific');
-        $this->assertEquals($f([]), 'generic');
+        $this->assertEquals('specific', $f([1, 2]));
+        $this->assertEquals('generic', $f([]));
+    }
+    public function testMatchStruct()
+    {
+        $f = match(
+            ['x' => is_int, 'y' => [
+                'z' => is_string
+            ]], 'struct'
+        );
+        $this->assertEquals('struct', $f(['x' => 1, 'y' => ['z' => 'a']]));
     }
     public function testMatchClass()
     {
@@ -47,8 +56,8 @@ class MatchTest extends TestCase
             FakeClass::class, 'specific',
             FakeInterface::class, 'generic'
         );
-        $this->assertEquals($f(new FakeClass()), 'specific');
-        $this->assertEquals($f(new class implements FakeInterface {}), 'generic');
+        $this->assertEquals('specific', $f(new FakeClass()));
+        $this->assertEquals('generic', $f(new class implements FakeInterface {}));
     }
     public function testMatchNested()
     {
@@ -57,8 +66,8 @@ class MatchTest extends TestCase
             k(gte(1)), fn ($x, $k) => "$k:$x"
         )));
         $this->assertEquals(
-            $f([1, 2, 3]),
-            [null, '1:2', 'three']
+            [null, '1:2', 'three'],
+            $f([1, 2, 3])
         );
     }
     public function testMatchRecursiveInput()
