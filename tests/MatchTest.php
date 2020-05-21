@@ -104,7 +104,7 @@ class MatchTest extends TestCase
     }
     public function testMatchVariable()
     {
-        $X = new MatchVariable;
+        [$X] = MatchVariable::create();
 
         $exists = filter(not(is_null));
         $query = fn ($type, $value) =>
@@ -114,8 +114,8 @@ class MatchTest extends TestCase
                 ['A', 'C', 'Z']
             ]));
 
-        $result = $query(['A', $X, 'Z'], $X);
-        $this->assertEquals([2 => 'C'], $result);
+        $result = $query(['A', $X, 'Z'], [$X, $X]);
+        $this->assertEquals([2 => ['C', 'C']], $result);
 
         $result = $query(['A', $X->constrain(is_array), 'X'], $X);
         $this->assertEquals([0 => ['B']], $result);

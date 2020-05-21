@@ -207,80 +207,55 @@ function fanout (callable ...$fs) {
 /**
 * Return true if all predicates are true, i.e., logical AND
 * 
-* @param callable[] $fs,...
+* @param mixed[] $Ts,...
 * @return callable
 */
-function all(...$fs)
+function all(...$Ts)
 {
-    $all = function ($fs, $x, $y) {
-        foreach ($fs as $f) {
-            if (!f($f)($x, $y)) {
+    $all = function ($Ts, $x, $y) {
+        foreach ($Ts as $T) {
+            if (!is($x, $T, $y)) {
                 return false;
             }
         }
         return true;
     };
-    return fn ($x, $k = null) => $all($fs, $x, $k);
+    return fn ($x, $k = null) => $all($Ts, $x, $k);
 }
 
 /**
 * Return true if any predicates are true, i.e., logical OR
 * 
-* @param callable[] $fs,...
+* @param mixed[] $Ts,...
 * @return callable
 */
-function any(...$fs)
+function any(...$Ts)
 {
-    $any = function ($fs, $x, $k) {
-        foreach ($fs as $f) {
-            if (f($f)($x, $k)) {
+    $any = function ($Ts, $x, $k) {
+        foreach ($Ts as $T) {
+            if (is($x, $T, $k)) {
                 return true;
             }
         }
         return false;
     };
-    return fn ($x, $k = null) => $any($fs, $x, $k);
+    return fn ($x, $k = null) => $any($Ts, $x, $k);
 }
 
 /**
 * Negate the given predicate, i.e., logical NOT
 * 
-* @param callable $f
+* @param mixed $T
 * @return callable
 */
-function not($f)
+function not($T)
 {
-    return pipe(f($f), fn ($x) => !$x);
+    return fn ($x, $k = null) => !is($x, $T, $k);
 }
 
 /*-----------------------------
 * MATCHING
 *----------------------------*/
-
-/**
-* Match [...[$type, $value]] pairs
-* 
-* @param array $args,...
-* @return callable
-*/
-function match(...$args)
-{
-    $f = function ($x, $k = null) use (&$f, $args) {
-        foreach (array_chunk($args, 2) as [$T, $value]) {
-            if (is($x, $T, $k)) {
-                if (!is_callable($value)) {
-                    if (is_array($value)) {
-                        return map(fn ($v) => is_callable($v) ? $v() : $v)($value);
-                    }
-                    return $value;
-                }
-                return f($value)($x, $k, $f);
-            }
-        }
-        return null;
-    };
-    return $f;
-}
 
 /**
 * Check if value (and/or optional key) represent an instance of the given type
@@ -313,6 +288,31 @@ function is($x, $T, $k = null)
         return false;
     }
     return true;
+}
+
+/**
+* Match [...[$type, $value]] pairs
+* 
+* @param array $args,...
+* @return callable
+*/
+function match(...$args)
+{
+    $f = function ($x, $k = null) use (&$f, $args) {
+        foreach (array_chunk($args, 2) as [$T, $value]) {
+            if (is($x, $T, $k)) {
+                if (!is_callable($value)) {
+                    if (is_array($value)) {
+                        return map(fn ($v) => is_callable($v) ? $v() : $v)($value);
+                    }
+                    return $value;
+                }
+                return f($value)($x, $k, $f);
+            }
+        }
+        return null;
+    };
+    return $f;
 }
 
 /**
@@ -421,15 +421,14 @@ function in(array $in, $strict = true)
 /**
 * Return true if predicate is true for all inputs
 * 
-* @param callable $f
+* @param mixed $T
 * @return callable
 */
-function every(callable $f)
+function every($T)
 {
-    $f = f($f);
-    return kv(function (array $x) use ($f) {
+    return kv(function (array $x) use ($T) {
         foreach ($x as $k => $v) {
-            if (!$f($v, $k)) return false;
+            if (!is($v, $T, $k)) return false;
         }
         return true;
     });
@@ -438,15 +437,14 @@ function every(callable $f)
 /**
 * Return true if predicate is true for at least one input
 * 
-* @param callable $f
+* @param mixed $f
 * @return callable
 */
-function some(callable $f)
+function some($T)
 {
-    $f = f($f);
-    return kv(function (array $x) use ($f) {
+    return kv(function (array $x) use ($T) {
         foreach ($x as $k => $v) {
-            if ($f($v, $k)) return true;
+            if (is($v, $T, $k)) return true;
         }
         return false;
     });
