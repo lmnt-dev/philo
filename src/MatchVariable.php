@@ -38,7 +38,7 @@ class MatchVariable {
     */
     function is($x)
     {
-        if (!$this->constraint || is($x, $this->constraint)) {
+        if (!$this->constraint || is($this->constraint, $x)) {
             $this->x = $x;
             return $x;
         }
@@ -48,9 +48,9 @@ class MatchVariable {
     /**
     * Constrain variable type
     */
-    function constrain(callable $f)
+    function constrain($T)
     {
-        $this->constraint = f($f);
+        $this->constraint = $T;
         return $this;
     }
 }

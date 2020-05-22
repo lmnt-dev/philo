@@ -43,6 +43,7 @@ const is_resource = 'is_resource';
 const is_scalar = 'is_scalar';
 const is_string = 'is_string';
 const is_uploaded_file = 'is_uploaded_file';
+const is_url = 'philo\is_url';
 const is_writable = 'is_writable';
 
 /**
@@ -87,7 +88,7 @@ function k($path, int $start = 0, int $length = null)
         }
         return is_callable($path)
             ? $path($k)
-            : is($k, $path);
+            : is($path, $k);
     };
 }
 
@@ -160,6 +161,16 @@ function reduce(callable $f, $initial = null)
     ));
 }
 
+/**
+* Interleave multiple arrays
+* 
+* @param array[] $xs,...
+* @return callable
+*/
+function zip(array ...$xs) {
+    return array_merge([], ...array_map(null, ...$xs));
+}
+
 /*-----------------------------
 * COMPOSITION
 *----------------------------*/
@@ -214,7 +225,7 @@ function all(...$Ts)
 {
     $all = function ($Ts, $x, $y) {
         foreach ($Ts as $T) {
-            if (!is($x, $T, $y)) {
+            if (!is($T, $x, $y)) {
                 return false;
             }
         }
@@ -233,7 +244,7 @@ function any(...$Ts)
 {
     $any = function ($Ts, $x, $k) {
         foreach ($Ts as $T) {
-            if (is($x, $T, $k)) {
+            if (is($T, $x, $k)) {
                 return true;
             }
         }
@@ -250,7 +261,7 @@ function any(...$Ts)
 */
 function not($T)
 {
-    return fn ($x, $k = null) => !is($x, $T, $k);
+    return fn ($x, $k = null) => !is($T, $x, $k);
 }
 
 /*-----------------------------
@@ -260,16 +271,20 @@ function not($T)
 /**
 * Check if value (and/or optional key) represent an instance of the given type
 * 
-* @param mixed $x
 * @param mixed $T
+* @param mixed $x
 * @param mixed $k
 * @return bool
 */
-function is($x, $T, $k = null)
+function is($T, $x, $k = null)
 {
     if (is_array($x) && is_array($T)) {
         foreach ($T as $i => $U) {
-            if (!isset($x[$i]) || !is($x[$i], $U, $i)) return false;
+            if (!isset($x[$i])) {
+                if (is($U, null)) continue; // maybe
+                return false;
+            }
+            if (!is($U, $x[$i], $i)) return false;
         }
         return true;
     } else if (is_type($T)) {
@@ -300,10 +315,11 @@ function match(...$args)
 {
     $f = function ($x, $k = null) use (&$f, $args) {
         foreach (array_chunk($args, 2) as [$T, $value]) {
-            if (is($x, $T, $k)) {
+            if (is($T, $x, $k)) {
                 if (!is_callable($value)) {
                     if (is_array($value)) {
-                        return map(fn ($v) => is_callable($v) ? $v() : $v)($value);
+                        $f = fn ($v) => is_callable($v) ? f($v)($x, $k) : $v;
+                        return map($f)($value);
                     }
                     return $value;
                 }
@@ -414,6 +430,16 @@ function in(array $in, $strict = true)
     return fn ($x) => in_array($x, $in, $strict);
 }
 
+/**
+* Return true if argument is null or of type $T
+* 
+* @param mixed $T
+* @return callable
+*/
+function maybe($T) {
+    return fn ($x, $k = null) => $x === null || is($T, $x, $k);
+}
+
 /*-----------------------------
 * QUANTIFIERS
 *----------------------------*/
@@ -428,7 +454,7 @@ function every($T)
 {
     return kv(function (array $x) use ($T) {
         foreach ($x as $k => $v) {
-            if (!is($v, $T, $k)) return false;
+            if (!is($T, $v, $k)) return false;
         }
         return true;
     });
@@ -444,7 +470,7 @@ function some($T)
 {
     return kv(function (array $x) use ($T) {
         foreach ($x as $k => $v) {
-            if (is($v, $T, $k)) return true;
+            if (is($T, $v, $k)) return true;
         }
         return false;
     });
@@ -499,6 +525,17 @@ function is_null($x)
 function is_type($x)
 {
     return is_object($x) && method_exists($x, 'is');
+}
+
+/**
+* Check if value is a URL
+* 
+* @param mixed $x
+* @return bool
+*/
+function is_url($x)
+{
+    return filter_var($x, FILTER_VALIDATE_URL);
 }
 
 /**
