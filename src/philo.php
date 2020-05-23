@@ -45,6 +45,9 @@ const is_string = 'is_string';
 const is_uploaded_file = 'is_uploaded_file';
 const is_url = 'philo\is_url';
 const is_writable = 'is_writable';
+const keys = 'array_keys';
+const merge = 'array_merge';
+const values = 'array_values';
 
 /**
 * Identity function
@@ -76,20 +79,13 @@ function filter(callable $f)
 * Match given key against input keys
 * 
 * @param (callable|string|int)[] $path
-* @param int $start
-* @param int $length
 * @return callable
 */
-function k($path, int $start = 0, int $length = null)
+function k($path)
 {
-    return function ($x, $k = null) use ($path, $start, $length) {
-        if ($start || $length) {
-            $k = slice($k, $start, $length);
-        }
-        return is_callable($path)
-            ? $path($k)
-            : is($path, $k);
-    };
+    return fn ($x, $k = null) => is_callable($path)
+        ? $path($k)
+        : is($path, $k);
 }
 
 /**
@@ -162,6 +158,33 @@ function reduce(callable $f, $initial = null)
 }
 
 /**
+* Return slice of given input
+*
+* @param int $start
+* @param int $length
+* @return callable
+*/
+function slice(int $start = 0, int $length = null)
+{
+    return function ($x) use ($start, $length) {
+        if (!$start && !$length) {
+            return $x;
+        }
+
+        $args = [$x, $start];
+        if ($length !== null) {
+            $args[] = $length;
+        }
+
+        if (is_array($x)) {
+            return array_slice(...$args);
+        } else if (is_string($x)) {
+            return substr(...$args);
+        }
+    };
+}
+
+/**
 * Interleave multiple arrays
 * 
 * @param array[] $xs,...
@@ -189,6 +212,16 @@ function compose(callable ...$fs)
 }
 
 /**
+* Distribute arguments to multiple callables
+*
+* @param callable[] $fs,...
+* @return callable
+*/
+function fanout (callable ...$fs) {
+    return fn (...$args) => array_map(fn ($f) => f($f)(...$args), $fs);
+}
+
+/**
 * Call functions left to right, passing each result into the next function
 * 
 * Given `pipe($f, $g)`, the result will be `$g($f())`
@@ -198,17 +231,20 @@ function compose(callable ...$fs)
 */
 function pipe(callable ...$fs)
 {
-    return fn ($x = null) => array_reduce($fs, fn ($g, $f) => $f($g), $x);
+    return function ($x = null, $y = null) use ($fs) {
+        $x = f(array_shift($fs))($x, $y);
+        return array_reduce($fs, fn ($g, $f) => $f($g), $x);
+    };
 }
 
 /**
-* Distribute argument to multiple callables
+* Use input array as arguments to callable
 *
 * @param callable[] $fs,...
 * @return callable
 */
-function fanout (callable ...$fs) {
-    return fn ($x) => array_map(fn ($f) => $f($x), $fs);
+function spread (callable $f) {
+    return fn (array $xs) => $f(...$xs);
 }
 
 /*-----------------------------
@@ -549,30 +585,4 @@ function num_args(callable $f)
     if (is_type($f)) return [1, 2];
     $r = is_array($f) ? new \ReflectionMethod(...$f) : new \ReflectionFunction($f);
     return [$r->getNumberOfRequiredParameters(), $r->getNumberOfParameters()];
-}
-
-/**
-* Return slice of given input
-* 
-* @param string|array $x
-* @param int $start
-* @param int $length
-* @return string|array
-*/
-function slice($x, int $start = 0, int $length = null)
-{
-    if (!$start && !$length) {
-        return $x;
-    }
-    
-    $args = [$x, $start];
-    if ($length !== null) {
-        $args[] = $length;
-    }
-    
-    if (is_array($x)) {
-        return array_slice(...$args);
-    } else if (is_string($x)) {
-        return substr(...$args);
-    }
 }

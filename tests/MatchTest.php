@@ -73,11 +73,11 @@ class MatchTest extends TestCase
     public function testMatchRecursiveInput()
     {
         $kv = fn ($x, $k) => implode('/', (array) $k) . ":$x";
-        
+
         $f = rmatch(
             4, identity,
-            k('a', 0, 1), $kv,
-            k(['b', 'c'], -2), $kv
+            pipe(k(slice(0, 1)), eq('a')), $kv,
+            pipe(k(slice(-2)), eq(['b', 'c'])), $kv
         );
 
         $tree = [

@@ -10,8 +10,8 @@ class SupportTest extends TestCase
 {
     public function testSlice()
     {
-        $this->assertEquals(['a', 'b'], slice(['a', 'b']));
-        $this->assertEquals(['b'], slice(['a', 'b'], -1));
-        $this->assertEquals('b', slice('ab', -1));
+        $this->assertEquals(['a', 'b'], slice()(['a', 'b']));
+        $this->assertEquals(['b'], slice(-1)(['a', 'b']));
+        $this->assertEquals('b', slice(-1)('ab'));
     }
 }
