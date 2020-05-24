@@ -312,7 +312,7 @@ function not($T)
 * @param mixed $k
 * @return bool
 */
-function is($T, $x, $k = null)
+function is($T, $x, $k = null, $strict = false)
 {
     if (is_array($x) && is_array($T)) {
         foreach ($T as $i => $U) {
@@ -321,6 +321,13 @@ function is($T, $x, $k = null)
                 return false;
             }
             if (!is($U, $x[$i], $i)) return false;
+        }
+        if ($strict) {
+            foreach (array_keys($x) as $i) {
+                if (!isset($T[$i])) {
+                    return false;
+                }
+            }
         }
         return true;
     } else if (is_type($T)) {
@@ -467,13 +474,23 @@ function in(array $in, $strict = true)
 }
 
 /**
-* Return true if argument is null or of type $T
+* Return true if input is null or of type $T
 * 
 * @param mixed $T
 * @return callable
 */
 function maybe($T) {
     return fn ($x, $k = null) => $x === null || is($T, $x, $k);
+}
+
+/**
+* Return true only if input contains all required properties of type $T
+* 
+* @param mixed $T
+* @return callable
+*/
+function strict($T) {
+    return fn ($x, $k = null) => is($T, $x, $k, true);
 }
 
 /*-----------------------------
