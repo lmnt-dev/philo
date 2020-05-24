@@ -45,6 +45,7 @@ const is_string = 'is_string';
 const is_uploaded_file = 'is_uploaded_file';
 const is_url = 'philo\is_url';
 const is_writable = 'is_writable';
+const combine = 'array_combine';
 const keys = 'array_keys';
 const merge = 'array_merge';
 const values = 'array_values';
