@@ -8,8 +8,10 @@ Functional & friendly
 
 Requires PHP 7.4+
 
-## installation
+## Installation
 
 ```
 composer require lmnt/philo:dev-master
 ```
+
+Alternatively, if you'd just like to experiment with philo, check out [philo-cli](https://github.com/lmnt-dev/philo-cli)
