@@ -8,20 +8,6 @@ use PHPUnit\Framework\TestCase;
 
 class CollectionTest extends TestCase
 {
-    public function testKV()
-    {
-        $f = kv(identity);
-        $this->assertNull($f(1));
-        $this->assertNull($f('a'));
-        $this->assertEquals(
-            [1, 'a'],
-            $f([1, 'a'])
-        );
-        $this->assertEquals(
-            (object) ['a' => 1, 'b' => 2],
-            $f((object)['a' => 1, 'b' => 2])
-        );
-    }
     public function testMapNonIterable()
     {
         $f = map('is_string');
@@ -30,28 +16,21 @@ class CollectionTest extends TestCase
         $this->assertNull($f(true));
         $this->assertNull($f('a'));
         $this->assertNull($f(1));
+        $this->assertNull($f((object) ['a' => 1, 'b' => '2']));
     }
     public function testMapArray()
     {
-        $f = map('is_string');
+        $f = to_array(map(is_string));
         $this->assertEquals(
             [false, true],
             $f([1, '2'])
         );
     }
-    public function testMapObject()
-    {
-        $f = map('is_string');
-        $this->assertEquals(
-            (object) ['a' => false, 'b' => true],
-            $f((object) ['a' => 1, 'b' => '2'])
-        );
-    }
     public function testMapKeyPath()
     {
-        $f = map(fn ($x, $k) => $k, ['...path']);
+        $f = to_array(map(fn ($x, $k) => $k, ['...path']));
         $this->assertEquals(
-            ['a' => ['...path', 'a'], 'b' => ['...path', 'b']],
+            [['...path', 'a'], ['...path', 'b']],
             $f(['a' => 1, 'b' => [2, 3]])
         );
     }
@@ -65,15 +44,23 @@ class CollectionTest extends TestCase
     }
     public function testFilter()
     {
-        $f = filter('is_string');
+        $f = to_array(filter(is_string), true);
         $this->assertEquals(
             [1 => '2', 4 => '5'],
             $f([1, '2', 3, 4, '5'])
         );
     }
+    public function testPick()
+    {
+        $f = to_array(pick('a'), true);
+        $this->assertEquals(
+            ['a' => 2],
+            $f([1, 'a' => 2, 'b' => 3])
+        );
+    }
     public function testPluck()
     {
-        $f = pluck('a', 'b');
+        $f = to_array(pluck('a', 'b'), true);
         $this->assertEquals(
             [['a' => 2, 'b' => 3], ['a' => 5]],
             $f([
@@ -81,5 +68,11 @@ class CollectionTest extends TestCase
                 [4, 'a' => 5]
             ])
         );
+    }
+    public function testSlice()
+    {
+        $this->assertEquals(['a', 'b'], slice()(['a', 'b']));
+        $this->assertEquals(['b'], slice(-1)(['a', 'b']));
+        $this->assertEquals('b', slice(-1)('ab'));
     }
 }

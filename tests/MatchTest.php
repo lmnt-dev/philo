@@ -61,10 +61,10 @@ class MatchTest extends TestCase
     }
     public function testMatchNested()
     {
-        $f = match('is_array', map(match(
+        $f = to_array(match(is_iterable, map(match(
             3, 'three',
             k(gte(1)), fn ($x, $k) => "$k:$x"
-        )));
+        ))));
         $this->assertEquals(
             [null, '1:2', 'three'],
             $f([1, 2, 3])
@@ -74,11 +74,11 @@ class MatchTest extends TestCase
     {
         $kv = fn ($x, $k) => implode('/', (array) $k) . ":$x";
 
-        $f = rmatch(
+        $f = to_array(rmatch(
             4, identity,
-            pipe(k(slice(0, 1)), eq('a')), $kv,
-            pipe(k(slice(-2)), eq(['b', 'c'])), $kv
-        );
+            pipe(k(slice(-2)), eq(['b','c'])), $kv,
+            pipe(k(slice(0, 1)), eq('a')), $kv
+        ));
 
         $tree = [
             'a' => 1,
@@ -92,13 +92,13 @@ class MatchTest extends TestCase
         ];
 
         $this->assertEquals([
-            'a' => 'a:1',
-            'apple' => 'apple:2',
-            'b' => [
-                'c' => 'b/c:3',
-                'd' => 4,
-                'e' => ['b' => ['c' => 'b/e/b/c:5']],
-                'f' => null
+            'a:1',
+            'apple:2',
+            [
+                'b/c:3',
+                4,
+                [['b/e/b/c:5']],
+                null
             ]
         ], $f($tree));
     }
@@ -115,7 +115,7 @@ class MatchTest extends TestCase
     {
         [$X] = MatchVariable::create();
 
-        $exists = filter(not(is_null));
+        $exists = to_array(filter(not(is_null)), true);
         $query = fn ($type, $value) =>
             $exists(rmatch($type, $value)([
                 ['A', ['B'], 'X'],
@@ -137,7 +137,7 @@ class MatchTest extends TestCase
         $X = new MatchVariable;
         $Y = new MatchVariable;
 
-        $exists = filter(not(is_null));
+        $exists = to_array(filter(not(is_null)), true);
         $query = fn ($type, $value) =>
             $exists(rmatch($type, $value)([
                 ['A', ['B'], 'X'],

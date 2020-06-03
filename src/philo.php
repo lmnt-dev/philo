@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace philo;
 
+use iter;
+
 /**
 * Exported function strings
 */
@@ -45,10 +47,11 @@ const is_string = 'is_string';
 const is_uploaded_file = 'is_uploaded_file';
 const is_url = 'philo\is_url';
 const is_writable = 'is_writable';
-const combine = 'array_combine';
-const keys = 'array_keys';
-const merge = 'array_merge';
-const values = 'array_values';
+const combine = 'iter\zipKeyValue';
+const keys = 'iter\keys';
+const range = 'iter\range';
+const to_array = 'philo\to_array';
+const values = 'iter\values';
 
 /**
 * Identity function
@@ -61,8 +64,204 @@ function identity($x)
     return $x;
 }
 
-/*-----------------------------
-* Collections
+/**---------------------------
+* * CREATION *
+*----------------------------*/
+
+/**
+* Construct an instance of the given type
+* 
+* @psalm-template T
+* @param T $T
+* @param mixed $x
+* @param mixed $k
+* @param bool $strict
+* @return Left|Right
+*/
+function create($T, $x, $k = null, $strict = false)
+{
+    if (is_array($x) && is_array($T)) {
+        $r = [];
+        $left = false;
+        /** @var T $U */
+        foreach ($T as $i => $U) {
+            if (!isset($x[$i])) {
+                // maybe
+                if (is($U, null)) continue;
+                $left = true;
+            } else {
+                $r[$i] = create($U, $x[$i], $i);
+                if (is_left($r[$i])) $left = true;
+            }
+        }
+        if ($strict) {
+            foreach (array_keys($x) as $i) {
+                if (!isset($T[$i])) {
+                    return left($x);
+                }
+            }
+        }
+        return $left ? left($r) : right($r);
+    } else if (is_type_object($T)) {
+        if (!$T->is($x)) return left($x);
+    } else if (!is_callable($T)) {
+        if (is_string($T)) {
+            if (class_exists($T) || interface_exists($T)) {
+                if (!$x instanceof $T) return left($x);
+            } else if ($x !== $T) {
+                return left($x);
+            }
+        } else if ($x !== $T) {
+            return left($x);
+        }
+    } else {
+        /** @var bool|Left|Right $v */
+        $v = f($T)($x, $k);
+        return is_left($v) ? left($x) : right($x);
+    }
+    return right($x);
+}
+
+/**
+ * Left typically represents an invalid state
+ * @property mixed $value
+ */
+class Left
+{
+    /**
+     * @readonly
+     * */
+    public $value;
+
+    /**
+    * @param mixed $x
+    */
+    function __construct($x)
+    {
+        $this->value = $x;
+    }
+}
+
+/**
+ * Right typically represents a valid state
+ * @property mixed $value
+ */
+class Right
+{
+    /**
+     * @readonly
+     * */
+    public $value;
+
+    /**
+    * @param mixed $x
+    */
+    function __construct($x)
+    {
+        $this->value = $x;
+    }
+}
+
+/**
+* @param mixed $x
+* @return Left
+*/
+function left($x)
+{
+    return new Left($x);
+}
+
+/**
+* @param mixed $x
+* @return Right
+*/
+function right($x)
+{
+    return new Right($x);
+}
+
+/**
+ * Unwrap the left side of a result
+ * 
+ * @param array|Left|Right $x
+ * @return mixed
+ */
+function lval($x)
+{
+    if (is_array($x)) {
+        return array_map(__FUNCTION__, $x);
+    }
+    if ($x instanceof Left) {
+        return lval($x->value);
+    }
+    if (is_right($x)) {
+        return is_array($x->value) ? array_map(fn () => null, $x->value ?? $x) : null;
+    }
+    return $x;
+}
+
+/**
+ * Unwrap the right side of a result
+ * 
+ * @param array|Left|Right $x
+ * @return mixed
+ */
+function rval($x)
+{
+    if (is_array($x)) {
+        return array_map(__FUNCTION__, $x);
+    }
+    if ($x instanceof Left) {
+        return is_array($x->value) ? rval($x->value) : null;
+    }
+    if ($x instanceof Right) {
+        return rval($x->value);
+    }
+    return $x;
+}
+
+/**
+* @param bool|Left|Right $x
+* @return bool
+*/
+function is_left($x)
+{
+    return $x === false || $x instanceof Left;
+}
+
+/**
+* @param bool|Left|Right $x
+* @return bool
+*/
+function is_right($x)
+{
+    return $x === true || $x instanceof Right;
+}
+
+/**
+* Return true if input is null or of type $T
+* 
+* @psalm-template T
+* @param T $T
+* @return callable(mixed, mixed=) : bool
+*/
+function maybe($T) {
+    return fn ($x, $k = null) => $x === null || is($T, $x, $k);
+}
+
+/**
+* Return true only if input contains all required properties of type $T
+* 
+* @psalm-template T
+* @param T $T
+* @return callable(mixed, mixed=) : bool
+*/
+function strict($T) {
+    return fn ($x, $k = null) => is($T, $x, $k, true);
+}
+
+/**---------------------------
+* * COLLECTIONS *
 *----------------------------*/
 
 /**
@@ -73,14 +272,21 @@ function identity($x)
 */
 function filter(callable $f)
 {
-    return kv(fn (array $x) => array_filter($x, f($f), ARRAY_FILTER_USE_BOTH));
+    return function (iterable $x) use ($f) {
+        $f = f($f);
+        foreach ($x as $k => $v) {
+            if ($f($v, $k)) {
+                yield $k => $v;
+            }
+        }
+    };
 }
 
 /**
 * Match given key against input keys
 * 
-* @param (callable|string|int)[] $path
-* @return callable
+* @param callable|(string|int)[] $path
+* @return callable(mixed, mixed=) : mixed
 */
 function k($path)
 {
@@ -90,39 +296,29 @@ function k($path)
 }
 
 /**
-* Normalize key/val inputs for the given function
-* 
-* @param callable $f expecting associative array
-* @return callable
-*/
-function kv(callable $f)
-{
-    return match(
-        is_array, $f,
-        is_object, fn ($x) => (object) $f(get_object_vars($x))
-    );
-}
-
-/**
 * Map inputs to outputs via the given function
 * 
 * @param callable $f
 * @param (string|int)[] $path
 * @return callable
 */
-function map(callable $f = null, array $path = null)
+function map(callable $f, array $path = null)
 {
-    $f = f($f);
-    return reduce(function ($r, $x, $k) use ($f, $path) {
-        $r[$k] = $f($x, $path ? array_merge($path, [$k]) : $k);
-        return $r;
-    });
+    return fn ($x) => !is_iterable($x) ? null : (
+        function ($x) use ($f, $path) {
+            $f = f($f);
+            foreach ($x as $k => $v) {
+                if ($path) $k = array_merge($path, [$k]);
+                yield $k => $f($v, $k);
+            }
+        }
+    )($x);
 }
 
 /**
 * Pick values via key/index
 * 
-* @param string[] $keys,...
+* @param string ...$keys
 * @return callable
 */
 function pick(string ...$keys)
@@ -133,7 +329,7 @@ function pick(string ...$keys)
 /**
 * Pluck values from collection via key/index
 * 
-* @param string[] $keys,...
+* @param string ...$keys
 * @return callable
 */
 function pluck(string ...$keys)
@@ -146,16 +342,11 @@ function pluck(string ...$keys)
 * 
 * @param callable $f
 * @param mixed $initial
-* @return callable
+* @return callable(iterable) : mixed
 */
 function reduce(callable $f, $initial = null)
 {
-    $f = f($f);
-    return kv(fn (array $x) => array_reduce(
-        array_keys($x),
-        fn ($r, $k) => $f($r, $x[$k], $k),
-        $initial
-    ));
+    return fn (iterable $x) => iter\reduce(f($f), $x, $initial);
 }
 
 /**
@@ -163,7 +354,7 @@ function reduce(callable $f, $initial = null)
 *
 * @param int $start
 * @param int $length
-* @return callable
+* @return callable(mixed) : mixed
 */
 function slice(int $start = 0, int $length = null)
 {
@@ -179,6 +370,8 @@ function slice(int $start = 0, int $length = null)
 
         if (is_array($x)) {
             return array_slice(...$args);
+        } else if (is_iterable($x)) {
+            return iter\slice(...$args);
         } else if (is_string($x)) {
             return substr(...$args);
         }
@@ -186,17 +379,22 @@ function slice(int $start = 0, int $length = null)
 }
 
 /**
-* Interleave multiple arrays
+* Convert iterable results to array
 * 
-* @param array[] $xs,...
-* @return callable
+* @param callable $f
+* @param bool $with_keys
+* @return callable(mixed, mixed=) : array
 */
-function zip(array ...$xs) {
-    return array_merge([], ...array_map(null, ...$xs));
+function to_array(callable $f, $with_keys = false)
+{
+    return fn ($x, $k = null) => iter\recurse(
+        $with_keys ? 'iter\toArrayWithKeys' : 'iter\toArray',
+        f($f)($x, $k)
+    );
 }
 
-/*-----------------------------
-* COMPOSITION
+/**---------------------------
+* * COMPOSITION *
 *----------------------------*/
 
 /**
@@ -215,7 +413,7 @@ function compose(callable ...$fs)
 /**
 * Distribute arguments to multiple callables
 *
-* @param callable[] $fs,...
+* @param callable ...$fs
 * @return callable
 */
 function fanout (callable ...$fs) {
@@ -227,13 +425,13 @@ function fanout (callable ...$fs) {
 * 
 * Given `pipe($f, $g)`, the result will be `$g($f())`
 * 
-* @param callable[] $fs,...
+* @param callable ...$fs
 * @return callable
 */
 function pipe(callable ...$fs)
 {
-    return function ($x = null, $y = null) use ($fs) {
-        $x = f(array_shift($fs))($x, $y);
+    return function ($x = null, $k = null) use ($fs) {
+        $x = f(array_shift($fs))($x, $k);
         return array_reduce($fs, fn ($g, $f) => $f($g), $x);
     };
 }
@@ -241,53 +439,74 @@ function pipe(callable ...$fs)
 /**
 * Use input array as arguments to callable
 *
-* @param callable[] $fs,...
+* @param callable ...$fs
 * @return callable
 */
 function spread (callable $f) {
     return fn (array $xs) => $f(...$xs);
 }
 
-/*-----------------------------
-* LOGICAL CONNECTIVES
+/**---------------------------
+* * LOGICAL CONNECTIVES *
 *----------------------------*/
 
 /**
-* Return true if all predicates are true, i.e., logical AND
+* Logical AND / Intersection Type
 * 
-* @param mixed[] $Ts,...
-* @return callable
+* @psalm-template T
+* @param T ...$Ts
+* @return callable(mixed, mixed=) : (Left|Right)
 */
 function all(...$Ts)
 {
-    $all = function ($Ts, $x, $y) {
+    return function ($x, $k = null) use ($Ts) {
         foreach ($Ts as $T) {
-            if (!is($T, $x, $y)) {
-                return false;
+            $v = create($T, $x, $k);
+            if (is_left($v)) {
+                return left($v);
             }
         }
-        return true;
+        return right($x);
     };
-    return fn ($x, $k = null) => $all($Ts, $x, $k);
 }
 
 /**
-* Return true if any predicates are true, i.e., logical OR
+* Logical OR / Union Type
 * 
-* @param mixed[] $Ts,...
-* @return callable
+* @psalm-template T
+* @param T ...$Ts
+* @return callable(mixed, mixed=) : (Left|Right)
 */
 function any(...$Ts)
 {
-    $any = function ($Ts, $x, $k) {
+    return function ($x, $k = null) use ($Ts) {
         foreach ($Ts as $T) {
-            if (is($T, $x, $k)) {
-                return true;
+            $v = create($T, $x, $k);
+            if (is_right($v)) {
+                return right($v);
             }
         }
-        return false;
+        return left($x);
     };
-    return fn ($x, $k = null) => $any($Ts, $x, $k);
+}
+
+/**---------------------------
+* * MATCHING *
+*----------------------------*/
+
+/**
+* Check if value (and optional key) represent an instance of the given type
+* 
+* @psalm-template T of callable(mixed, mixed=) : (bool|Left|Right)
+* @param T|T[] $T
+* @param null|int|string|array $x
+* @param string|string[] $k
+* @param bool $strict
+* @return bool
+*/
+function is($T, $x, $k = null, $strict = false)
+{
+    return is_right(create($T, $x, $k, $strict));
 }
 
 /**
@@ -301,58 +520,10 @@ function not($T)
     return fn ($x, $k = null) => !is($T, $x, $k);
 }
 
-/*-----------------------------
-* MATCHING
-*----------------------------*/
-
-/**
-* Check if value (and/or optional key) represent an instance of the given type
-* 
-* @param mixed $T
-* @param mixed $x
-* @param mixed $k
-* @return bool
-*/
-function is($T, $x, $k = null, $strict = false)
-{
-    if (is_array($x) && is_array($T)) {
-        foreach ($T as $i => $U) {
-            if (!isset($x[$i])) {
-                if (is($U, null)) continue; // maybe
-                return false;
-            }
-            if (!is($U, $x[$i], $i)) return false;
-        }
-        if ($strict) {
-            foreach (array_keys($x) as $i) {
-                if (!isset($T[$i])) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    } else if (is_type($T)) {
-        if (!$T->is($x)) return false;
-    } else if (!is_callable($T)) {
-        if (is_string($T)) {
-            if (class_exists($T) || interface_exists($T)) {
-                if (!$x instanceof $T) return false;
-            } else if ($x !== $T) {
-                return false;
-            }
-        } else if ($x !== $T) {
-            return false;
-        }
-    } else if (f($T)($x, $k) === false) {
-        return false;
-    }
-    return true;
-}
-
 /**
 * Match [...[$type, $value]] pairs
 * 
-* @param array $args,...
+* @param array ...$args
 * @return callable
 */
 function match(...$args)
@@ -387,7 +558,7 @@ function recurse()
         $k !== null && !is_array($k) ? [$k] : $k
     )($x);
     return [
-        is_array, $recurse,
+        is_iterable, $recurse,
         is_object, $recurse
     ];
 }
@@ -395,7 +566,7 @@ function recurse()
 /**
 * Full recursive match of [...[$type, $value]] pairs
 * 
-* @param array $args,...
+* @param array ...$pairs
 * @return callable
 */
 function rmatch(...$pairs)
@@ -403,15 +574,15 @@ function rmatch(...$pairs)
     return match(...$pairs, ...recurse());
 }
 
-/*-----------------------------
-* PREDICATES
+/**---------------------------
+* * PREDICATES *
 *----------------------------*/
 
 /**
 * Return true if argument is strictly equal to input
 * 
 * @param mixed $y
-* @return callable
+* @return callable(mixed) : bool
 */
 function eq($y)
 {
@@ -422,7 +593,7 @@ function eq($y)
 * Return true if argument is greater than input
 * 
 * @param mixed $y
-* @return callable
+* @return callable(mixed) : bool
 */
 function gt($y)
 {
@@ -433,7 +604,7 @@ function gt($y)
 * Return true if argument is greater than or equal to input
 * 
 * @param mixed $y
-* @return callable
+* @return callable(mixed) : bool
 */
 function gte($y)
 {
@@ -444,7 +615,7 @@ function gte($y)
 * Return true if argument is less than input
 * 
 * @param mixed $y
-* @return callable
+* @return callable(mixed) : bool
 */
 function lt($y)
 {
@@ -455,7 +626,7 @@ function lt($y)
 * Return true if argument is less than or equal to input
 * 
 * @param mixed $y
-* @return callable
+* @return callable(mixed) : bool
 */
 function lte($y)
 {
@@ -465,37 +636,17 @@ function lte($y)
 /**
 * Return true if input is found in array
 * 
-* @param mixed[] $in
+* @param (int|string)[] $in
 * @param bool $strict
-* @return callable
+* @return callable(mixed) : bool
 */
 function in(array $in, $strict = true)
 {
     return fn ($x) => in_array($x, $in, $strict);
 }
 
-/**
-* Return true if input is null or of type $T
-* 
-* @param mixed $T
-* @return callable
-*/
-function maybe($T) {
-    return fn ($x, $k = null) => $x === null || is($T, $x, $k);
-}
-
-/**
-* Return true only if input contains all required properties of type $T
-* 
-* @param mixed $T
-* @return callable
-*/
-function strict($T) {
-    return fn ($x, $k = null) => is($T, $x, $k, true);
-}
-
-/*-----------------------------
-* QUANTIFIERS
+/**---------------------------
+* * QUANTIFIERS *
 *----------------------------*/
 
 /**
@@ -506,12 +657,18 @@ function strict($T) {
 */
 function every($T)
 {
-    return kv(function (array $x) use ($T) {
-        foreach ($x as $k => $v) {
-            if (!is($T, $v, $k)) return false;
+    return function ($x) use ($T) {
+        if ($x === null) {
+            return is($T, null) ? right($x) : left($x);
         }
-        return true;
-    });
+        $r = [];
+        $left = false;
+        foreach ($x as $k => $v) {
+            $r[$k] = create($T, $v, $k);
+            if (is_left($r[$k])) $left = true;
+        }
+        return $left ? left($r) : right($r);
+    };
 }
 
 /**
@@ -522,16 +679,34 @@ function every($T)
 */
 function some($T)
 {
-    return kv(function (array $x) use ($T) {
+    return function ($x) use ($T) {
         foreach ($x as $k => $v) {
-            if (is($T, $v, $k)) return true;
+            if (is($T, $v, $k)) return right($x);
         }
-        return false;
-    });
+        return left($x);
+    };
 }
 
-/*-----------------------------
-* SUPPORT
+/**--------------------------
+* * STREAMING *
+*----------------------------*/
+
+/**
+* Stream JSON from input to output
+* 
+* @param callable $f
+* @param resource $input
+* @param resource $output
+* @return void
+*/
+function stream_json(callable $f, $input = STDIN, $output = STDOUT) {
+    (new \JsonCollectionParser\Parser())->parse(
+        $input, fn (array $x) => fwrite($output, json_encode($f($x)) . "\n" )
+    );
+}
+
+/**---------------------------
+* * SUPPORT *
 *----------------------------*/
 
 /**
@@ -540,7 +715,7 @@ function some($T)
 * Only applies to callable strings, other values will be returned as is
 * 
 * @param callable $f
-* @return mixed
+* @return callable
 */
 function f(callable $f)
 {
@@ -559,7 +734,7 @@ function f(callable $f)
 */
 function is_null($x)
 {
-    if (!is_array($x)) {
+    if (!is_iterable($x)) {
         return $x === null;
     }
     foreach ($x as $v) {
@@ -576,7 +751,7 @@ function is_null($x)
 * @param mixed $x
 * @return bool
 */
-function is_type($x)
+function is_type_object($x)
 {
     return is_object($x) && method_exists($x, 'is');
 }
@@ -589,18 +764,17 @@ function is_type($x)
 */
 function is_url($x)
 {
-    return filter_var($x, FILTER_VALIDATE_URL);
+    return filter_var($x, FILTER_VALIDATE_URL) !== false;
 }
 
 /**
 * Return [min, max] number of args for the given callable
 * 
-* @param callable $f
-* @return array(int,int)
+* @return array<int,int>
 */
 function num_args(callable $f)
 {
-    if (is_type($f)) return [1, 2];
+    if (is_type_object($f)) return [1, 2];
     $r = is_array($f) ? new \ReflectionMethod(...$f) : new \ReflectionFunction($f);
     return [$r->getNumberOfRequiredParameters(), $r->getNumberOfParameters()];
 }

@@ -17,19 +17,24 @@ class CompositionTest extends TestCase
         $text = compose(
             $root,
             $list,
-            map($item)
+            to_array(map($item))
         )(['barb', 'bob']);
 
         $this->assertEquals(':[*barb* *bob*]:', $text);
     }
-    public function testPipe()
-    {
-        $f = pipe('strtoupper', 'ord', 'sqrt');
-        $this->assertEquals($f('Q'), 9);
-    }
     public function testFanOut()
     {
         $f = fanout('strtoupper', 'ord', identity);
-        $this->assertEquals($f('q'), ['Q', 113, 'q']);
+        $this->assertEquals(['Q', 113, 'q'], $f('q'));
+    }
+    public function testPipe()
+    {
+        $f = pipe('strtoupper', 'ord', 'sqrt');
+        $this->assertEquals(9, $f('Q'));
+    }
+    public function testSpread()
+    {
+        $f = spread(fn ($a, $b, $c) => "$a:$b:$c");
+        $this->assertEquals('1:2:3', $f([1,2,3]));
     }
 }

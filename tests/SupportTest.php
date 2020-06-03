@@ -8,10 +8,8 @@ use PHPUnit\Framework\TestCase;
 
 class SupportTest extends TestCase
 {
-    public function testSlice()
+    public function testIsNull()
     {
-        $this->assertEquals(['a', 'b'], slice()(['a', 'b']));
-        $this->assertEquals(['b'], slice(-1)(['a', 'b']));
-        $this->assertEquals('b', slice(-1)('ab'));
+        $this->assertTrue(is_null([null, 'a' => ['b' => null]]));
     }
 }

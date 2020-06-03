@@ -36,15 +36,4 @@ class PredicateTest extends TestCase
     {
         $this->assertTrue(in([3])(3));
     }
-    public function testMaybe()
-    {
-        $T = [
-            'a' => is_int,
-            'b' => maybe(is_bool)
-        ];
-        $this->assertTrue(is($T, ['a' => 1]));
-        $this->assertTrue(is($T, ['a' => 1, 'b' => false]));
-        $this->assertTrue(is($T, ['a' => 1, 'c' => 2]));
-        $this->assertFalse(is($T, ['a' => 1, 'b' => 2]));
-    }
 }
