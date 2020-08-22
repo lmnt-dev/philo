@@ -240,14 +240,14 @@ function is_right($x)
 }
 
 /**
-* Return true if null or type $T
+* Return true if input is null or type $T
 * 
 * @psalm-template T
 * @param T $T
 * @return callable(mixed, mixed=) : bool
 */
 function maybe($T) {
-    return fn ($x, $k = null) => $x === null || create($T, $x, $k);
+    return fn ($x, $k = null) => $x === null || is($T, $x, $k);
 }
 
 /**
