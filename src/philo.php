@@ -118,13 +118,13 @@ function create($T, $x, $k = null, $strict = false)
     } else {
         /** @var bool|Left|Right $v */
         $v = f($T)($x, $k);
-        return is_left($v) ? left($v) : right($x);
+        return is_left($v) ? left(!is_bool($v) ? $v : $x) : right($x);
     }
     return right($x);
 }
 
 /**
- * Left typically represents an invalid state
+ * Left represents an invalid state
  * @property mixed $value
  */
 class Left
@@ -144,7 +144,7 @@ class Left
 }
 
 /**
- * Right typically represents a valid state
+ * Right represents a valid state
  * @property mixed $value
  */
 class Right
