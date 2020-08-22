@@ -118,7 +118,7 @@ function create($T, $x, $k = null, $strict = false)
     } else {
         /** @var bool|Left|Right $v */
         $v = f($T)($x, $k);
-        return is_left($v) ? left($x) : right($x);
+        return is_left($v) ? left($v) : right($x);
     }
     return right($x);
 }
@@ -169,7 +169,7 @@ class Right
 */
 function left($x)
 {
-    return new Left($x);
+    return $x instanceof Left ? $x : new Left($x);
 }
 
 /**
@@ -178,7 +178,7 @@ function left($x)
 */
 function right($x)
 {
-    return new Right($x);
+    return $x instanceof Right ? $x : new Right($x);
 }
 
 /**
@@ -196,7 +196,7 @@ function lval($x)
         return lval($x->value);
     }
     if ($x instanceof Right) {
-        return is_array($x->value) ? array_map(fn () => null, $x->value ?? $x) : null;
+        return is_array($x->value) ? array_map(fn () => null, $x->value) : null;
     }
     return $x;
 }
