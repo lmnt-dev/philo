@@ -97,7 +97,8 @@ function create($T, $x, $k = null, $strict = false)
         if ($strict) {
             foreach (array_keys($x) as $i) {
                 if (!isset($T[$i])) {
-                    return left($x);
+                    $left = true;
+                    $r[$i] = left($x[$i]);
                 }
             }
         }
@@ -194,7 +195,7 @@ function lval($x)
     if ($x instanceof Left) {
         return lval($x->value);
     }
-    if (is_right($x)) {
+    if ($x instanceof Right) {
         return is_array($x->value) ? array_map(fn () => null, $x->value ?? $x) : null;
     }
     return $x;
@@ -239,7 +240,7 @@ function is_right($x)
 }
 
 /**
-* Return true if input is null or of type $T
+* Return true if input is null or type $T
 * 
 * @psalm-template T
 * @param T $T
@@ -250,14 +251,14 @@ function maybe($T) {
 }
 
 /**
-* Return true only if input contains all required properties of type $T
+* Return type $T if input contains all required properties
 * 
 * @psalm-template T
 * @param T $T
 * @return callable(mixed, mixed=) : bool
 */
 function strict($T) {
-    return fn ($x, $k = null) => is($T, $x, $k, true);
+    return fn ($x, $k = null) => create($T, $x, $k, true);
 }
 
 /**---------------------------
